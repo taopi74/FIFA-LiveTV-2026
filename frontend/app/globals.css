@@ -1307,3 +1307,53 @@ button {
   transform: translateY(0);
   pointer-events: all;
 }
+
+/* ==========================================================================
+   📺 BROWSER HTML5 FULLSCREEN API STYLES
+   ========================================================================== */
+
+.neon-player-outer:fullscreen {
+  width: 100vw !important;
+  height: 100vh !important;
+  background: #000 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.neon-player-outer:fullscreen .neon-player-video-box {
+  width: 100vw !important;
+  height: 100vh !important;
+  padding-bottom: 0 !important;
+  flex: 1 !important;
+}
+
+.neon-player-outer:fullscreen .neon-player-video-box video {
+  width: 100vw !important;
+  height: 100vh !important;
+  object-fit: contain !important;
+}
+
+.neon-player-outer:fullscreen .neon-player-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.9) 0%, transparent 100%) !important;
+  border-top: none !important;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.neon-player-outer:fullscreen.is-chrome-visible .neon-player-controls {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}

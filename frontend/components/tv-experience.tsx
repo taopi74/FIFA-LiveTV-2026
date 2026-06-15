@@ -6,6 +6,7 @@ import {
   Expand,
   Heart,
   ListVideo,
+  Minimize,
   Play,
   Pause,
   Radio,
@@ -98,6 +99,8 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showPlayerChrome, setShowPlayerChrome] = useState(true);
   const [playError, setPlayError] = useState("");
   const [clock, setClock] = useState({ time: "21:34", date: "Wed Oct 25" });
 
@@ -129,6 +132,45 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
       setActiveChannelId(initialChannelId);
     }
   }, [initialChannelId, channels]);
+
+  // Fullscreen state listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  // Auto-hide controls chrome in theater/fullscreen mode
+  useEffect(() => {
+    if (!isTheaterMode && !isFullscreen) {
+      setShowPlayerChrome(true);
+      return;
+    }
+
+    let timeoutId: NodeJS.Timeout;
+    const handleMouseMove = () => {
+      setShowPlayerChrome(true);
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setShowPlayerChrome(false);
+      }, 3000);
+    };
+
+    setShowPlayerChrome(true);
+    timeoutId = setTimeout(() => {
+      setShowPlayerChrome(false);
+    }, 3000);
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      clearTimeout(timeoutId);
+    };
+  }, [isTheaterMode, isFullscreen]);
 
   const activeChannel = useMemo(
     () => channels.find((channel) => channel.id === activeChannelId) ?? channels[0],
@@ -285,7 +327,7 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
   }
 
   return (
-    <div className="dashboard-container">
+    <div className={`dashboard-container ${isTheaterMode ? "theater-mode" : ""} ${showPlayerChrome ? "is-chrome-visible" : ""}`}>
       {/* 1. Header Bar */}
       <header className="dashboard-header">
         <div style={{ display: "flex", alignItems: "center" }}>
@@ -426,9 +468,9 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
           </div>
 
           {/* Neon Player */}
-          <div className="neon-player-outer">
-            <div className="neon-player-video-box">
-              <video ref={videoRef} muted={isMuted} playsInline />
+          <div className={`neon-player-outer ${showPlayerChrome ? "is-chrome-visible" : ""}`}>
+            <div className="neon-player-video-box" onDoubleClick={toggleFullscreen}>
+              <video ref={videoRef} muted={isMuted} playsInline onClick={togglePlay} style={{ cursor: "pointer" }} />
               
               {/* Playback Error overlay inside player */}
               {playError && (
@@ -441,6 +483,7 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
 
             {/* Custom Interactive Control Bar inside Player */}
             <div 
+              className="neon-player-controls"
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -487,11 +530,24 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
                 </button>
 
                 <button
+                  onClick={() => setIsTheaterMode(!isTheaterMode)}
+                  style={{ 
+                    background: "transparent", 
+                    border: "none", 
+                    cursor: "pointer", 
+                    color: isTheaterMode ? "var(--lime)" : "#fff" 
+                  }}
+                  title={isTheaterMode ? "Exit Full View" : "Enter Full View"}
+                >
+                  <Tv size={20} style={{ color: isTheaterMode ? "var(--lime)" : "#fff" }} />
+                </button>
+
+                <button
                   onClick={toggleFullscreen}
                   style={{ background: "transparent", border: "none", cursor: "pointer", color: "#fff" }}
-                  title="Toggle Fullscreen"
+                  title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
                 >
-                  <Expand size={20} />
+                  {isFullscreen ? <Minimize size={20} /> : <Expand size={20} />}
                 </button>
               </div>
             </div>
