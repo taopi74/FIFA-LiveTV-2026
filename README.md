@@ -2,7 +2,7 @@
 
 LiveTV 2026 is a premium, high-performance web application built using **Next.js 15**, **React 19**, and **TypeScript**. It reads M3U streams, parses channel information, and plays HLS streams directly in your browser with optimized buffering and a modern UI.
 
-![Live TV App Interface](./live_tv_preview.png)
+![Live TV App Interface](https://files.catbox.moe/w5tpde.png)
 
 ---
 
