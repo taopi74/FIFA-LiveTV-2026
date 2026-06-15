@@ -97,6 +97,7 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
   const [favorites, setFavorites] = useState<string[]>([]);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [isTheaterMode, setIsTheaterMode] = useState(false);
   const [playError, setPlayError] = useState("");
   const [clock, setClock] = useState({ time: "21:34", date: "Wed Oct 25" });
 

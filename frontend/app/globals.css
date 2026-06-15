@@ -1113,11 +1113,16 @@ button {
 .neon-player-video-box {
   position: relative;
   width: 100%;
-  aspect-ratio: 16/9;
-  max-height: 580px;
+  height: 0;
+  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+  background: #000;
+  overflow: hidden;
 }
 
 .neon-player-video-box video {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -1212,3 +1217,93 @@ button {
   color: var(--muted);
 }
 
+/* ==========================================================================
+   🎬 THEATER MODE (FULLSCREEN PLAYBACK OVERLAY)
+   ========================================================================== */
+
+.dashboard-container.theater-mode .dashboard-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
+  border-bottom: none;
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.dashboard-container.theater-mode.is-chrome-visible .dashboard-header {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.dashboard-container.theater-mode .dashboard-main-content {
+  grid-template-columns: 1fr;
+  height: 100vh;
+}
+
+.dashboard-container.theater-mode .dashboard-sidebar {
+  display: none !important;
+}
+
+.dashboard-container.theater-mode .dashboard-viewer {
+  padding: 0;
+  gap: 0;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.dashboard-container.theater-mode .active-channel-meta-row,
+.dashboard-container.theater-mode .recommendations-section {
+  display: none !important;
+}
+
+.dashboard-container.theater-mode .neon-player-outer {
+  border-radius: 0;
+  box-shadow: none;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-container.theater-mode .neon-player-video-box {
+  flex: 1;
+  width: 100vw;
+  height: 100vh;
+  padding-bottom: 0;
+}
+
+.dashboard-container.theater-mode .neon-player-video-box video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain;
+}
+
+.dashboard-container.theater-mode .neon-player-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.9) 0%, transparent 100%) !important;
+  border-top: none !important;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.dashboard-container.theater-mode.is-chrome-visible .neon-player-controls {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
