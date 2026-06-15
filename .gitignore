@@ -1,0 +1,27 @@
+# Dependency directories
+node_modules/
+**/node_modules/
+
+# Next.js build outputs
+.next/
+**/.next/
+out/
+
+# Log files
+*.log
+npm-debug.log*
+
+# M3U Playlists (Legal Protection)
+*.m3u
+**/*.m3u
+
+# Image previews (untrack local screenshots)
+live_tv_preview.png
+**/live_tv_preview.png
+
+# Environment files
+.env*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

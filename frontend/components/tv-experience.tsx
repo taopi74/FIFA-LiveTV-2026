@@ -1,7 +1,6 @@
 "use client";
 
 import Hls from "hls.js";
-import { useRouter } from "next/navigation";
 import {
   Compass,
   Expand,
@@ -10,11 +9,11 @@ import {
   Play,
   Pause,
   Radio,
+  Search,
   Signal,
   Tv,
   Volume2,
-  VolumeX,
-  X
+  VolumeX
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Channel } from "@/lib/services/playlist-service";
@@ -42,19 +41,102 @@ function writeList(key: string, value: string[]) {
   window.localStorage.setItem(key, JSON.stringify(value));
 }
 
+function channelInitials(name: string) {
+  const words = name
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length === 0) return "TV";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[1][0]}`.toUpperCase();
+}
+
+function accentIndex(value: string) {
+  let sum = 0;
+  for (const char of value) {
+    sum += char.charCodeAt(0);
+  }
+  return (sum % 6) + 1;
+}
+
+// Dummy show schedule generator to make EPG look authentic
+function getEPGInfo(channelName: string, index: number) {
+  const shows = [
+    "Premier League Live: MUN vs MCI",
+    "UCL Matchday Coverage",
+    "F1 Grand Prix Practice",
+    "World Sports Center",
+    "La Liga Highlights",
+    "Liga MX Clausura Live",
+    "NBA Daily: Lakers vs Celtics",
+    "Global News Hourly",
+    "Sports Tonight Live",
+    "Extreme Sports Showcase"
+  ];
+  
+  const showName = shows[index % shows.length];
+  
+  // Progress percentage (35% to 85% for live effect)
+  const progress = 35 + ((index * 17) % 51);
+  
+  return {
+    showName,
+    timeSlot: "21:00 - 23:00",
+    progress
+  };
+}
+
 export function TvExperience({ channels, initialChannelId }: TvExperienceProps) {
-  const router = useRouter();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
   
   const [activeChannelId, setActiveChannelId] = useState(initialChannelId ?? channels[0]?.id ?? "");
+  const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [playError, setPlayError] = useState("");
-  const [showPlayerChrome, setShowPlayerChrome] = useState(true);
-  const [showQuickMenu, setShowQuickMenu] = useState(false);
-  const chromeTimerRef = useRef<number | undefined>(undefined);
+  const [clock, setClock] = useState({ time: "21:34", date: "Wed Oct 25" });
+
+  // Update clock state dynamically
+  useEffect(() => {
+    function updateTime() {
+      const now = new Date();
+      const time = now.toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      });
+      const date = now.toLocaleDateString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric"
+      });
+      setClock({ time, date });
+    }
+    
+    updateTime();
+    const interval = setInterval(updateTime, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Sync active channel from initialChannelId param changes
+  useEffect(() => {
+    if (initialChannelId && channels.some((c) => c.id === initialChannelId)) {
+      setActiveChannelId(initialChannelId);
+    }
+  }, [initialChannelId, channels]);
+
+  const activeChannel = useMemo(
+    () => channels.find((channel) => channel.id === activeChannelId) ?? channels[0],
+    [activeChannelId, channels]
+  );
+
+  useEffect(() => {
+    setFavorites(readList(storage.favorites));
+  }, []);
 
   // Sync play/pause state from video element events
   useEffect(() => {
@@ -70,53 +152,13 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
     };
   }, []);
 
-  // Sync active channel from URL param changes
-  useEffect(() => {
-    if (initialChannelId && channels.some(c => c.id === initialChannelId)) {
-      setActiveChannelId(initialChannelId);
-    }
-  }, [initialChannelId, channels]);
-
-  const activeChannel = useMemo(
-    () => channels.find((channel) => channel.id === activeChannelId) ?? channels[0],
-    [activeChannelId, channels]
-  );
-
-  useEffect(() => {
-    setFavorites(readList(storage.favorites));
-  }, []);
-
-  // Show controls on mouse move and auto-hide after 3 seconds
-  function revealPlayerChrome() {
-    setShowPlayerChrome(true);
-    if (chromeTimerRef.current) {
-      window.clearTimeout(chromeTimerRef.current);
-    }
-    chromeTimerRef.current = window.setTimeout(() => {
-      // Don't auto-hide controls if quick menu is open
-      if (!showQuickMenu) {
-        setShowPlayerChrome(false);
-      }
-    }, 3000);
-  }
-
-  useEffect(() => {
-    revealPlayerChrome();
-    return () => {
-      if (chromeTimerRef.current) {
-        window.clearTimeout(chromeTimerRef.current);
-      }
-    };
-  }, [activeChannelId, showQuickMenu]);
-
-  // Load and play channel HLS stream
+  // HLS stream playback logic
   useEffect(() => {
     if (!activeChannel || !videoRef.current) return;
 
     const video = videoRef.current;
     setPlayError("");
     
-    // Destroy previous HLS instance
     hlsRef.current?.destroy();
     hlsRef.current = null;
     video.pause();
@@ -127,8 +169,7 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
       const hls = new Hls({
         lowLatencyMode: true,
         backBufferLength: 30,
-        enableWorker: true,
-        maxBufferLength: 10
+        enableWorker: true
       });
 
       hlsRef.current = hls;
@@ -139,12 +180,10 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
       });
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (data.fatal) {
-          console.warn("HLS Fatal Error:", data);
-          setPlayError("This channel stream is offline or blocked by CORS. Try another channel.");
+          setPlayError("This stream did not respond. Try selecting another channel from the sidebar.");
         }
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      // Safari fallback
       video.src = activeChannel.url;
       video.play().catch(() => undefined);
     } else {
@@ -159,22 +198,52 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
 
   const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
 
-  function toggleFavorite(channelId: string) {
-    setFavorites((current) => {
-      const next = current.includes(channelId)
-        ? current.filter((id) => id !== channelId)
-        : [channelId, ...current];
-      writeList(storage.favorites, next);
-      return next;
-    });
-  }
+  // Filter channels based on search query in the header
+  const filteredChannels = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return channels;
+    return channels.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.group.toLowerCase().includes(q) ||
+        (c.country && c.country.toLowerCase().includes(q))
+    );
+  }, [channels, searchQuery]);
 
-  function toggleMute() {
-    const video = videoRef.current;
-    if (!video) return;
-    video.muted = !video.muted;
-    setIsMuted(video.muted);
-  }
+  // Generate EPG Info for the active channel
+  const activeEPG = useMemo(() => {
+    if (!activeChannel) return { showName: "", timeSlot: "", progress: 0 };
+    const index = channels.findIndex((c) => c.id === activeChannel.id);
+    return getEPGInfo(activeChannel.name, index === -1 ? 0 : index);
+  }, [activeChannel, channels]);
+
+  // Recommendations: select 3 other channels from the list
+  const recommendedChannels = useMemo(() => {
+    const index = channels.findIndex((c) => c.id === activeChannelId);
+    const result: { channel: Channel; thumb: string; showTitle: string; time: string }[] = [];
+    
+    // Fallback Unsplash high quality sports photography
+    const sportsThumbs = [
+      "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=450&q=80", // soccer
+      "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=450&q=80", // sports runner
+      "https://images.unsplash.com/photo-1521533886411-e7751593a2bc?w=450&q=80", // basketball court
+      "https://images.unsplash.com/photo-1540747737956-37872f7671f3?w=450&q=80"  // stadium
+    ];
+
+    for (let offset = 1; offset <= 3; offset++) {
+      const targetIndex = (index + offset) % channels.length;
+      const ch = channels[targetIndex];
+      if (ch) {
+        result.push({
+          channel: ch,
+          thumb: sportsThumbs[(targetIndex) % sportsThumbs.length],
+          showTitle: getEPGInfo(ch.name, targetIndex).showName,
+          time: getEPGInfo(ch.name, targetIndex).timeSlot
+        });
+      }
+    }
+    return result;
+  }, [channels, activeChannelId]);
 
   function togglePlay() {
     const video = videoRef.current;
@@ -186,329 +255,307 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
     }
   }
 
+  function toggleMute() {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = !video.muted;
+    setIsMuted(video.muted);
+  }
+
   function toggleFullscreen() {
-    const player = document.querySelector(".cinematic-player-wrapper");
+    const player = document.querySelector(".neon-player-outer");
     if (player instanceof HTMLElement) {
       if (!document.fullscreenElement) {
-        player.requestFullscreen?.().catch((err) => console.error(err));
+        player.requestFullscreen?.().catch(() => undefined);
       } else {
         document.exitFullscreen?.();
       }
     }
   }
 
-  if (!activeChannel) {
-    return (
-      <main className="empty-state">
-        <Tv aria-hidden="true" />
-        <h1>No channels loaded</h1>
-        <p>Ensure the backend server is running and provides channels.</p>
-      </main>
-    );
+  function toggleFavorite(channelId: string) {
+    setFavorites((current) => {
+      const next = current.includes(channelId)
+        ? current.filter((id) => id !== channelId)
+        : [channelId, ...current];
+      writeList(storage.favorites, next);
+      return next;
+    });
   }
 
   return (
-    <div 
-      className="cinematic-player-wrapper"
-      onMouseMove={revealPlayerChrome}
-      onClick={revealPlayerChrome}
-      onTouchStart={revealPlayerChrome}
-      style={{
-        position: "relative",
-        width: "100vw",
-        height: "100vh",
-        backgroundColor: "#000",
-        overflow: "hidden"
-      }}
-    >
-      {/* HLS Video Player */}
-      <video
-        ref={videoRef}
-        muted={isMuted}
-        playsInline
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "contain",
-          backgroundColor: "#000"
-        }}
-      />
-
-      {/* Glow Ambient Backdrop */}
-      <div className="ambient ambient-one" style={{ filter: "blur(120px)", opacity: 0.3 }} />
-      <div className="ambient ambient-two" style={{ filter: "blur(120px)", opacity: 0.3 }} />
-
-      {/* Error Message Panel */}
-      {playError ? (
-        <div 
-          className="player-error" 
-          style={{ 
-            zIndex: 10, 
-            backgroundColor: "rgba(5, 6, 9, 0.85)", 
-            backdropFilter: "blur(15px)" 
-          }}
-        >
-          <Signal size={40} className="text-coral" aria-hidden="true" style={{ color: "var(--coral)" }} />
-          <h2 style={{ fontSize: "1.5rem", margin: "10px 0" }}>Playback Issue</h2>
-          <span>{playError}</span>
-          <button 
-            onClick={() => setShowQuickMenu(true)} 
-            className="group-strip button"
-            style={{
-              marginTop: "20px",
-              padding: "10px 20px",
-              background: "var(--lime)",
-              color: "#08090d",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontWeight: "bold"
-            }}
-          >
-            Select Another Channel
-          </button>
-        </div>
-      ) : null}
-
-      {/* Floating Header Overlay */}
-      <header
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 8,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "20px 30px",
-          background: "linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 100%)",
-          opacity: showPlayerChrome ? 1 : 0,
-          transform: showPlayerChrome ? "translateY(0)" : "translateY(-20px)",
-          transition: "opacity 0.4s ease, transform 0.4s ease",
-          pointerEvents: showPlayerChrome ? "all" : "none"
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <span className="brand-mark" style={{ width: "36px", height: "36px" }}>
-            <Tv size={18} aria-hidden="true" />
-          </span>
-          <span style={{ fontSize: "1.2rem", fontWeight: 800, color: "#fff", letterSpacing: "1px" }}>LiveTV</span>
+    <div className="dashboard-container">
+      {/* 1. Header Bar */}
+      <header className="dashboard-header">
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }} onClick={() => setSearchQuery("")}>
+            <span className="brand-mark">
+              <Tv size={22} style={{ color: "var(--cyan)" }} />
+            </span>
+            <span style={{ fontSize: "1.25rem", fontWeight: 900, color: "#fff", letterSpacing: "1px" }}>LiveTV</span>
+          </div>
+          
+          <nav className="dashboard-nav-links">
+            <a href="#" className="dashboard-nav-link active">Watch TV</a>
+            <a href="#" className="dashboard-nav-link">Guide</a>
+            <a href="#" className="dashboard-nav-link">Sports</a>
+            <a href="#" className="dashboard-nav-link">Movies</a>
+          </nav>
         </div>
 
-        <div style={{ display: "flex", gap: "12px" }}>
-          <button
-            onClick={() => router.push("/browse")}
-            className="icon-button"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              width: "auto",
-              padding: "0 18px",
-              background: "var(--panel-strong)",
-              borderRadius: "8px",
-              border: "1px solid var(--line-strong)",
-              color: "#fff",
-              cursor: "pointer"
-            }}
-            title="Open Channels Grid Browser"
-          >
-            <Compass size={18} />
-            <span>Browse Channels Grid</span>
-          </button>
+        {/* Header Search Box */}
+        <div className="dashboard-search-container">
+          <Search size={17} className="dashboard-search-icon" />
+          <input
+            className="dashboard-search-input"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search channels, groups, regions..."
+          />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery("")}
+              style={{
+                position: "absolute",
+                right: "15px",
+                top: "10px",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--muted)"
+              }}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
 
-          <button
-            onClick={() => setShowQuickMenu(!showQuickMenu)}
-            className="icon-button"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              width: "auto",
-              padding: "0 18px",
-              background: showQuickMenu ? "var(--lime)" : "var(--panel-strong)",
-              borderRadius: "8px",
-              border: "1px solid var(--line-strong)",
-              color: showQuickMenu ? "#08090d" : "#fff",
-              cursor: "pointer"
-            }}
-            title="Toggle Quick Switcher Menu"
-          >
-            <ListVideo size={18} />
-            <span>Quick List</span>
-          </button>
+        {/* User Profile & Clock */}
+        <div className="dashboard-profile-box">
+          <img 
+            src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80" 
+            alt="Mona K." 
+            className="dashboard-avatar" 
+          />
+          <span className="dashboard-user-name">Mona K.</span>
+          <div className="dashboard-clock">
+            <strong>{clock.time}</strong>
+            <span>{clock.date}</span>
+          </div>
         </div>
       </header>
 
-      {/* Floating Footer Overlay (Control Bar) */}
-      <footer
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 8,
-          padding: "30px",
-          background: "linear-gradient(0deg, rgba(0,0,0,0.85) 0%, transparent 100%)",
-          opacity: showPlayerChrome ? 1 : 0,
-          transform: showPlayerChrome ? "translateY(0)" : "translateY(20px)",
-          transition: "opacity 0.4s ease, transform 0.4s ease",
-          pointerEvents: showPlayerChrome ? "all" : "none"
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-          <div>
-            <span className="eyebrow" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-              <Radio size={14} className="animate-pulse" /> Live Now
-            </span>
-            <h1 style={{ color: "#fff", margin: "6px 0 2px", fontSize: "2rem", fontWeight: 700 }}>
-              {activeChannel.name}
-            </h1>
-            <p style={{ color: "var(--muted)", margin: 0, fontSize: "0.95rem" }}>
-              Channel {activeChannel.number.toString().padStart(3, "0")} · {activeChannel.group} · {activeChannel.quality} · {activeChannel.host}
-            </p>
+      {/* 2. Main Body Content (Split Layout) */}
+      <div className="dashboard-main-content">
+        {/* Left Sidebar: EPG Card List */}
+        <aside className="dashboard-sidebar">
+          <div className="epg-scroll-container">
+            {filteredChannels.map((channel, i) => {
+              const epg = getEPGInfo(channel.name, i);
+              const isActive = channel.id === activeChannel.id;
+              
+              return (
+                <div
+                  key={channel.id}
+                  onClick={() => setActiveChannelId(channel.id)}
+                  className={`epg-card-item ${isActive ? "active" : ""}`}
+                >
+                  <div className="epg-card-header">
+                    <div className="epg-card-logo-container">
+                      {channel.logo ? (
+                        <img src={channel.logo} alt="" className="epg-card-logo" />
+                      ) : (
+                        <span className={`epg-card-logo-placeholder accent-${accentIndex(channel.name)}`}>
+                          {channelInitials(channel.name)}
+                        </span>
+                      )}
+                      <span className="epg-card-name">{channel.name}</span>
+                    </div>
+                    <span className="epg-card-live-badge">Live</span>
+                  </div>
+
+                  <p className="epg-card-title">{epg.showName}</p>
+                  
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
+                    <span className="epg-card-time">{epg.timeSlot}</span>
+                    <span className="epg-card-time" style={{ color: "var(--cyan)", fontWeight: 700 }}>{epg.progress}%</span>
+                  </div>
+
+                  {/* Progress Line */}
+                  <div className="epg-card-progress-bar">
+                    <div className="epg-card-progress-fill" style={{ width: `${epg.progress}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+
+            {filteredChannels.length === 0 && (
+              <div style={{ textAlign: "center", color: "var(--muted)", paddingTop: "40px" }}>
+                <Search size={36} style={{ marginBottom: "12px", opacity: 0.5 }} />
+                <p style={{ margin: 0 }}>No matching channels found.</p>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* Right Area: Player & Recommendations */}
+        <main className="dashboard-viewer">
+          {/* Active Channel Metadata Row */}
+          <div className="active-channel-meta-row">
+            <div className="active-channel-meta-text">
+              <h1>{activeChannel.name} - {activeEPG.showName}</h1>
+              <p>
+                Channel {activeChannel.number.toString().padStart(3, "0")} · {activeChannel.group} · {activeChannel.quality} · {activeChannel.host}
+              </p>
+            </div>
+
+            <div className="active-channel-badge-logo">
+              {activeChannel.logo ? (
+                <img src={activeChannel.logo} alt="" className="active-channel-large-logo" />
+              ) : (
+                <span 
+                  className={`epg-card-logo-placeholder accent-${accentIndex(activeChannel.name)}`}
+                  style={{ width: "42px", height: "42px", fontSize: "1rem" }}
+                >
+                  {channelInitials(activeChannel.name)}
+                </span>
+              )}
+              <span className="eyebrow" style={{ color: "var(--cyan)", fontSize: "0.7rem" }}>LIVE</span>
+            </div>
           </div>
 
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button
-              onClick={togglePlay}
-              className="icon-button"
-              style={{
-                background: "rgba(255,255,255,0.08)",
-                color: "#fff",
-                border: "1px solid rgba(255,255,255,0.15)",
-                cursor: "pointer"
-              }}
-              title={isPlaying ? "Pause" : "Play"}
-            >
-              {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
-            </button>
+          {/* Neon Player */}
+          <div className="neon-player-outer">
+            <div className="neon-player-video-box">
+              <video ref={videoRef} muted={isMuted} playsInline />
+              
+              {/* Playback Error overlay inside player */}
+              {playError && (
+                <div className="player-error">
+                  <Signal size={32} style={{ color: "var(--coral)" }} />
+                  <span style={{ maxWidth: "80%", fontSize: "0.95rem" }}>{playError}</span>
+                </div>
+              )}
+            </div>
 
-            <button
-              onClick={() => toggleFavorite(activeChannel.id)}
-              className="icon-button"
-              style={{
-                background: "rgba(255,255,255,0.08)",
-                color: favoriteSet.has(activeChannel.id) ? "var(--red)" : "#fff",
-                border: "1px solid rgba(255,255,255,0.15)",
-                cursor: "pointer"
-              }}
-              title="Add to Favorites"
-            >
-              <Heart size={20} fill={favoriteSet.has(activeChannel.id) ? "currentColor" : "none"} />
-            </button>
-
-            <button
-              onClick={toggleMute}
-              className="icon-button"
-              style={{
-                background: "rgba(255,255,255,0.08)",
-                color: "#fff",
-                border: "1px solid rgba(255,255,255,0.15)",
-                cursor: "pointer"
-              }}
-              title={isMuted ? "Unmute" : "Mute"}
-            >
-              {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-            </button>
-
-            <button
-              onClick={toggleFullscreen}
-              className="icon-button"
-              style={{
-                background: "rgba(255,255,255,0.08)",
-                color: "#fff",
-                border: "1px solid rgba(255,255,255,0.15)",
-                cursor: "pointer"
-              }}
-              title="Toggle Fullscreen"
-            >
-              <Expand size={20} />
-            </button>
-          </div>
-        </div>
-      </footer>
-
-      {/* Slide-out Quick Switcher Sidebar Drawer */}
-      <aside
-        style={{
-          position: "absolute",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: "360px",
-          zIndex: 9,
-          background: "rgba(10, 12, 18, 0.94)",
-          backdropFilter: "blur(20px)",
-          borderLeft: "1px solid rgba(255,255,255,0.1)",
-          boxShadow: "-10px 0 40px rgba(0,0,0,0.5)",
-          transform: showQuickMenu ? "translateX(0)" : "translateX(100%)",
-          transition: "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
-          display: "flex",
-          flexDirection: "column",
-          padding: "20px"
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-          <h2 style={{ fontSize: "1.2rem", fontWeight: 800, margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-            <ListVideo size={20} /> Quick Channels
-          </h2>
-          <button
-            onClick={() => setShowQuickMenu(false)}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "var(--muted)",
-              cursor: "pointer"
-            }}
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Scrollable list of channels */}
-        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px", paddingRight: "4px" }}>
-          {channels.map((channel) => (
-            <button
-              key={channel.id}
-              onClick={() => {
-                setActiveChannelId(channel.id);
-                // Update URL parameter without full refresh
-                window.history.pushState({}, "", `/?channel=${channel.id}`);
-              }}
+            {/* Custom Interactive Control Bar inside Player */}
+            <div 
               style={{
                 display: "flex",
+                justifyContent: "space-between",
                 alignItems: "center",
-                gap: "12px",
-                width: "100%",
-                padding: "10px 14px",
-                background: channel.id === activeChannel.id ? "rgba(213, 255, 95, 0.15)" : "rgba(255,255,255,0.04)",
-                border: channel.id === activeChannel.id ? "1px solid rgba(213, 255, 95, 0.5)" : "1px solid rgba(255,255,255,0.08)",
-                borderRadius: "8px",
-                textAlign: "left",
-                color: channel.id === activeChannel.id ? "var(--lime)" : "#fff",
-                cursor: "pointer",
-                transition: "background 0.2s, border-color 0.2s"
+                padding: "16px 24px",
+                background: "rgba(10, 12, 18, 0.95)",
+                borderTop: "1px solid var(--glass-border)"
               }}
             >
-              <div 
-                style={{ 
-                  width: "12px", 
-                  height: "12px", 
-                  borderRadius: "50%", 
-                  backgroundColor: channel.id === activeChannel.id ? "var(--lime)" : "rgba(255,255,255,0.25)",
-                  flexShrink: 0
-                }} 
-              />
-              <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                <div style={{ fontWeight: "bold", fontSize: "0.9rem" }}>{channel.name}</div>
-                <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>{channel.group}</div>
+              <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
+                <button
+                  onClick={togglePlay}
+                  style={{ background: "transparent", border: "none", cursor: "pointer", color: "#fff" }}
+                  title={isPlaying ? "Pause" : "Play"}
+                >
+                  {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+                </button>
+
+                <button
+                  onClick={toggleMute}
+                  style={{ background: "transparent", border: "none", cursor: "pointer", color: "#fff" }}
+                  title={isMuted ? "Unmute" : "Mute"}
+                >
+                  {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                </button>
+                
+                <span style={{ fontSize: "0.85rem", color: "var(--muted)", marginLeft: "4px" }}>
+                  Active Stream Connected
+                </span>
               </div>
-            </button>
-          ))}
-        </div>
-      </aside>
+
+              <div style={{ display: "flex", gap: "14px" }}>
+                <button
+                  onClick={() => toggleFavorite(activeChannel.id)}
+                  style={{ 
+                    background: "transparent", 
+                    border: "none", 
+                    cursor: "pointer", 
+                    color: favoriteSet.has(activeChannel.id) ? "var(--red)" : "#fff" 
+                  }}
+                  title="Toggle Favorite"
+                >
+                  <Heart size={20} fill={favoriteSet.has(activeChannel.id) ? "currentColor" : "none"} />
+                </button>
+
+                <button
+                  onClick={toggleFullscreen}
+                  style={{ background: "transparent", border: "none", cursor: "pointer", color: "#fff" }}
+                  title="Toggle Fullscreen"
+                >
+                  <Expand size={20} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Recommendations Row */}
+          <section className="recommendations-section">
+            <h2 className="recommendations-title">Recommendations</h2>
+            <div className="recommendations-grid">
+              {recommendedChannels.map(({ channel, thumb, showTitle, time }) => (
+                <div 
+                  key={channel.id} 
+                  className="recommendation-card"
+                  onClick={() => {
+                    setActiveChannelId(channel.id);
+                    window.history.pushState({}, "", `/?channel=${channel.id}`);
+                  }}
+                >
+                  <div className="recommendation-thumb-box">
+                    <img src={thumb} alt="" className="recommendation-thumb-img" />
+                    <div className="recommendation-thumb-overlay">
+                      {channel.logo ? (
+                        <img src={channel.logo} alt="" className="recommendation-logo" />
+                      ) : (
+                        <span 
+                          className={`mini-mark accent-${accentIndex(channel.name)}`}
+                          style={{ color: "#08090d", fontWeight: 900, border: "none" }}
+                        >
+                          {channelInitials(channel.name)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="recommendation-info-box">
+                    <h3 className="recommendation-show-title">{channel.name} - {showTitle}</h3>
+                    <span className="recommendation-show-time">{time}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </main>
+      </div>
     </div>
+  );
+}
+
+// Simple X icon helper since lucide-react X import was removed or fallback is needed
+function X({ size, style }: { size?: number; style?: React.CSSProperties }) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width={size ?? 24} 
+      height={size ?? 24} 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+      style={style}
+    >
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
   );
 }

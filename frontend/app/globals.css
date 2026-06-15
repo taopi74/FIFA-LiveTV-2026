@@ -793,3 +793,422 @@ button {
     justify-content: flex-start;
   }
 }
+
+/* ==========================================================================
+   📺 PREMIUM MOCKUP UI STYLES (MATCHING live_tv_preview.png)
+   ========================================================================== */
+
+/* Glassmorphism Variables */
+:root {
+  --glass-bg: rgba(18, 22, 33, 0.45);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-hover: rgba(255, 255, 255, 0.08);
+  --neon-shadow: 0 0 20px rgba(82, 224, 214, 0.35), 0 0 45px rgba(82, 224, 214, 0.15);
+}
+
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.15);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Base Dashboard Grid Layout */
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background: radial-gradient(circle at 10% 10%, rgba(82, 224, 214, 0.07), transparent 40rem),
+              radial-gradient(circle at 90% 90%, rgba(255, 111, 97, 0.05), transparent 45rem),
+              #08090d;
+  overflow: hidden;
+}
+
+.dashboard-header {
+  height: 80px;
+  min-height: 80px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 40px;
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(8, 9, 13, 0.6);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+
+.dashboard-nav-links {
+  display: flex;
+  gap: 28px;
+  margin-left: 40px;
+}
+
+.dashboard-nav-link {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 0.2s ease;
+}
+
+.dashboard-nav-link:hover,
+.dashboard-nav-link.active {
+  color: #fff;
+}
+
+.dashboard-search-container {
+  flex: 0 1 420px;
+  position: relative;
+}
+
+.dashboard-search-input {
+  width: 100%;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  padding: 0 20px 0 45px;
+  color: #fff;
+  outline: none;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.dashboard-search-input:focus {
+  border-color: var(--cyan);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 12px rgba(82, 224, 214, 0.2);
+}
+
+.dashboard-search-icon {
+  position: absolute;
+  left: 18px;
+  top: 11px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.dashboard-profile-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.dashboard-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid var(--glass-border);
+}
+
+.dashboard-user-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.dashboard-clock {
+  font-size: 0.85rem;
+  color: var(--muted);
+  border-left: 1px solid var(--glass-border);
+  padding-left: 16px;
+  margin-left: 4px;
+  text-align: right;
+  line-height: 1.2;
+}
+
+.dashboard-clock strong {
+  display: block;
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.dashboard-main-content {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  height: calc(100vh - 80px);
+  overflow: hidden;
+}
+
+/* Left Sidebar EPG Column */
+.dashboard-sidebar {
+  border-right: 1px solid var(--glass-border);
+  background: rgba(13, 15, 20, 0.4);
+  backdrop-filter: blur(15px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.epg-scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.epg-card-item {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.epg-card-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+}
+
+.epg-card-item.active {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: transparent;
+  box-shadow: 0 0 0 1.5px var(--cyan), 0 8px 25px rgba(82, 224, 214, 0.2);
+}
+
+.epg-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.epg-card-logo-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.epg-card-logo {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  background: transparent;
+  border-radius: 4px;
+}
+
+.epg-card-logo-placeholder {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  font-size: 0.65rem;
+  font-weight: 900;
+  border-radius: 6px;
+  color: #08090d;
+}
+
+.epg-card-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.epg-card-live-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #fff;
+  background: var(--green);
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.epg-card-title {
+  font-size: 0.85rem;
+  color: var(--soft);
+  margin: 2px 0 0;
+  line-height: 1.3;
+}
+
+.epg-card-time {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+/* Progress bar container and fill */
+.epg-card-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.epg-card-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--lime));
+  border-radius: 99px;
+}
+
+/* Right Content Area */
+.dashboard-viewer {
+  display: flex;
+  flex-direction: column;
+  padding: 30px 40px;
+  overflow-y: auto;
+  gap: 28px;
+}
+
+.active-channel-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.active-channel-meta-text h1 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 6px;
+}
+
+.active-channel-meta-text p {
+  color: var(--muted);
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.active-channel-badge-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.active-channel-large-logo {
+  height: 36px;
+  object-fit: contain;
+}
+
+/* Neon Player Styling */
+.neon-player-outer {
+  position: relative;
+  width: 100%;
+  border-radius: 16px;
+  background: #000;
+  box-shadow: var(--neon-shadow);
+  overflow: hidden;
+}
+
+.neon-player-video-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  max-height: 580px;
+}
+
+.neon-player-video-box video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* EPG Recommendations Row */
+.recommendations-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.recommendations-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.recommendations-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.recommendation-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.recommendation-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.recommendation-thumb-box {
+  width: 100%;
+  aspect-ratio: 16/9;
+  position: relative;
+  background: #111;
+  overflow: hidden;
+}
+
+.recommendation-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.75;
+  transition: scale 0.3s ease;
+}
+
+.recommendation-card:hover .recommendation-thumb-img {
+  scale: 1.05;
+  opacity: 0.95;
+}
+
+.recommendation-thumb-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 80%);
+  display: flex;
+  align-items: flex-end;
+  padding: 10px;
+}
+
+.recommendation-logo {
+  height: 18px;
+  object-fit: contain;
+}
+
+.recommendation-info-box {
+  padding: 14px;
+}
+
+.recommendation-show-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recommendation-show-time {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
