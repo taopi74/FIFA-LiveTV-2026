@@ -1,4 +1,4 @@
-# 📺 LiveTV 2026 - Premium IPTV Streaming Web App
+# 📺 LiveTV 2026 - Premium IPTV Streaming Live TV
 
 LiveTV 2026 is a premium, high-performance web application built using **Next.js 15**, **React 19**, and **TypeScript**. It reads M3U streams, parses channel information, and plays HLS streams directly in your browser with optimized buffering and a modern UI.
 
