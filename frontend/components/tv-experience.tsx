@@ -265,12 +265,11 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
     const index = channels.findIndex((c) => c.id === activeChannelId);
     const result: { channel: Channel; thumb: string; showTitle: string; time: string }[] = [];
     
-    // Fallback Unsplash high quality sports photography
     const sportsThumbs = [
-      "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=450&q=80", // soccer
-      "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=450&q=80", // sports runner
-      "https://images.unsplash.com/photo-1521533886411-e7751593a2bc?w=450&q=80", // basketball court
-      "https://images.unsplash.com/photo-1540747737956-37872f7671f3?w=450&q=80"  // stadium
+      "https://placehold.co/450x250/08090d/52e0d6?text=Upcoming+Match", 
+      "https://placehold.co/450x250/08090d/d5ff5f?text=Live+Coverage", 
+      "https://placehold.co/450x250/08090d/52e0d6?text=Sports+Center", 
+      "https://placehold.co/450x250/08090d/d5ff5f?text=Championship"
     ];
 
     for (let offset = 1; offset <= 3; offset++) {
