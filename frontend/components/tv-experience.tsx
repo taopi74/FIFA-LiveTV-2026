@@ -7,6 +7,8 @@ import {
   Expand,
   Heart,
   ListVideo,
+  Play,
+  Pause,
   Radio,
   Signal,
   Tv,
@@ -48,10 +50,25 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
   const [activeChannelId, setActiveChannelId] = useState(initialChannelId ?? channels[0]?.id ?? "");
   const [favorites, setFavorites] = useState<string[]>([]);
   const [isMuted, setIsMuted] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [playError, setPlayError] = useState("");
   const [showPlayerChrome, setShowPlayerChrome] = useState(true);
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const chromeTimerRef = useRef<number | undefined>(undefined);
+
+  // Sync play/pause state from video element events
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    video.addEventListener("play", onPlay);
+    video.addEventListener("pause", onPause);
+    return () => {
+      video.removeEventListener("play", onPlay);
+      video.removeEventListener("pause", onPause);
+    };
+  }, []);
 
   // Sync active channel from URL param changes
   useEffect(() => {
@@ -157,6 +174,16 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
     if (!video) return;
     video.muted = !video.muted;
     setIsMuted(video.muted);
+  }
+
+  function togglePlay() {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play().catch(() => undefined);
+    } else {
+      video.pause();
+    }
   }
 
   function toggleFullscreen() {
@@ -344,6 +371,20 @@ export function TvExperience({ channels, initialChannelId }: TvExperienceProps) 
           </div>
 
           <div style={{ display: "flex", gap: "10px" }}>
+            <button
+              onClick={togglePlay}
+              className="icon-button"
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                color: "#fff",
+                border: "1px solid rgba(255,255,255,0.15)",
+                cursor: "pointer"
+              }}
+              title={isPlaying ? "Pause" : "Play"}
+            >
+              {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+            </button>
+
             <button
               onClick={() => toggleFavorite(activeChannel.id)}
               className="icon-button"
